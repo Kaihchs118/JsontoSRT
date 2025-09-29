@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON 轉 SRT 工具 (離線版)</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", sans-serif;
+      background: linear-gradient(135deg, #a7c7e7, #e3f2fd);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      transition: background 0.5s ease;
+    }
+    body.dark-mode {
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #e0f7fa;
+    }
+    .glass {
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 1rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 2rem;
+      max-width: 700px;
+      width: 90%;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    /* 漂亮的按鈕 */
+    button, .file-label, a.download {
+      display: inline-block;
+      padding: 10px 20px;
+      margin: 8px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      text-decoration: none;
+      text-align: center;
+    }
+    button.primary, .file-label {
+      background: #2196f3;
+      color: white;
+    }
+    button.primary:hover, .file-label:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.25);
+      background: #1976d2;
+    }
+    button.success, a.download {
+      background: #4caf50;
+      color: white;
+    }
+    button.success:hover, a.download:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.25);
+      background: #388e3c;
+    }
+
+    /* 隱藏原生 file input */
+    input[type="file"] {
+      display: none;
+    }
+
+    .preview {
+      margin-top: 1rem;
+      padding: 1rem;
+      height: 200px;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 8px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+
+    /* 使用說明區塊 */
+    .instructions {
+      margin-top: 1rem;
+    }
+    .instructions-header {
+      cursor: pointer;
+      background: rgba(33, 150, 243, 0.2);
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+    .instructions-header:hover {
+      background: rgba(33, 150, 243, 0.35);
+    }
+    .instructions-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.6s cubic-bezier(0.25, 1.25, 0.5, 1); /* 彈簧效果 */
+      padding: 0 10px;
+    }
+    .instructions-content.open {
+      max-height: 300px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="glass">
+    <h1>JSON ➝ SRT 字幕轉換器</h1>
+
+    <!-- 主題切換 -->
+    <div style="text-align: right;">
+      <button id="toggleTheme" class="primary">切換主題</button>
+    </div>
+
+    <!-- 上傳框 -->
+    <div style="text-align: center;">
+      <label for="fileInput" class="file-label">📂 選擇 JSON 檔</label>
+      <input type="file" id="fileInput" accept=".json">
+    </div>
+
+    <!-- 功能按鈕 -->
+    <div style="text-align: center;">
+      <button id="convertBtn" class="primary">🚀 一鍵轉換</button>
+      <a id="downloadLink" class="download" style="display:none;">⬇️ 下載 SRT</a>
+    </div>
+
+    <!-- 預覽框 -->
+    <div>
+      <h3>📄 預覽字幕：</h3>
+      <div id="preview" class="preview">尚未轉換字幕</div>
+    </div>
+
+    <!-- 說明 -->
+    <div class="instructions">
+      <div class="instructions-header">❓ 使用說明 (點我展開)</div>
+      <div id="instructionsContent" class="instructions-content">
+        <p>1️⃣ 上傳 AutoSub 生成的 JSON 檔案。</p>
+        <p>2️⃣ 點擊「🚀 一鍵轉換」，會解析 <code>start</code>/<code>end</code>/<code>text</code>。</p>
+        <p>3️⃣ 預覽字幕並下載 SRT。</p>
+        <p>小技巧：生成的檔案可直接匯入 DaVinci Resolve 當字幕軌。</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const convertBtn = document.getElementById('convertBtn');
+    const downloadLink = document.getElementById('downloadLink');
+    const previewBox = document.getElementById('preview');
+    const toggleThemeBtn = document.getElementById('toggleTheme');
+    const instructionsHeader = document.querySelector('.instructions-header');
+    const instructionsContent = document.getElementById('instructionsContent');
+
+    // 主題切換
+    toggleThemeBtn.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+    });
+
+    // 使用說明展開/收起
+    instructionsHeader.addEventListener('click', () => {
+      instructionsContent.classList.toggle('open');
+    });
+
+    // 秒數轉換 → SRT 格式
+    function toSRTTime(seconds) {
+      const date = new Date(0);
+      date.setSeconds(seconds);
+      return date.toISOString().substr(11, 12).replace('.', ',');
+    }
+
+    convertBtn.addEventListener('click', () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("請先上傳 JSON 檔！");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          const segments = data.originalSegments || [];
+          let srtContent = "";
+
+          segments.forEach((seg, index) => {
+            srtContent += `${index + 1}\n`;
+            srtContent += `${toSRTTime(seg.start)} --> ${toSRTTime(seg.end)}\n`;
+            srtContent += `${seg.text}\n\n`;
+          });
+
+          // 預覽
+          previewBox.textContent = srtContent;
+
+          // 下載
+          const blob = new Blob([srtContent], { type: "text/plain" });
+          const url = URL.createObjectURL(blob);
+          downloadLink.href = url;
+          downloadLink.download = "output.srt";
+          downloadLink.style.display = "inline-block";
+        } catch (err) {
+          alert("解析 JSON 發生錯誤，請確認格式正確！");
+          console.error(err);
+        }
+      };
+      reader.readAsText(file);
+    });
+  </script>
+</body>
+</html>
