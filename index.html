@@ -26,8 +26,8 @@
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.18);
       padding: 2rem;
-      max-width: 800px;
-      width: 95%;
+      max-width: 700px;
+      width: 90%;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
     }
     h1 {
@@ -68,17 +68,19 @@
       background: #e57a07;
     }
 
+    /* 一鍵轉換顏色強化 */
     button.onepress {
-      background: #ffeb3b;
-      color: #000;
+      background: #ffeb3b; /* 亮黃色 */
+      color: #000; /* 黑字 */
       font-weight: bold;
     }
     button.onepress:hover {
-      background: #fbc02d;
+      background: #fbc02d; /* 金色 */
       transform: translateY(-4px);
       box-shadow: 0 6px 12px rgba(0,0,0,0.25);
     }
 
+    /* 隱藏原生 file input */
     input[type="file"] {
       display: none;
     }
@@ -94,36 +96,7 @@
       white-space: pre-wrap;
     }
 
-    /* 編輯器 */
-    #editor {
-      width: 100%;
-      height: 250px;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 10px;
-      font-family: monospace, "Courier New";
-      background: #fdfdfd;
-      border: 1px solid #ccc;
-      line-height: 1.5;
-      resize: vertical;
-      outline: none;
-      transition: all 0.3s ease;
-    }
-    #editor:focus {
-      border-color: #2196f3;
-      box-shadow: 0 0 8px rgba(33,150,243,0.3);
-      background: #fff;
-    }
-    body.dark-mode #editor {
-      background: #1e1e1e;
-      color: #e0f7fa;
-      border: 1px solid #444;
-    }
-    body.dark-mode #editor:focus {
-      border-color: #90caf9;
-      box-shadow: 0 0 8px rgba(144,202,249,0.4);
-    }
-
+    /* 使用說明區塊 */
     .instructions {
       margin-top: 1rem;
     }
@@ -138,10 +111,11 @@
     .instructions-header:hover {
       background: rgba(33, 150, 243, 0.35);
     }
+
     .instructions-content {
       max-height: 0;
       overflow: hidden;
-      transition: max-height 0.6s cubic-bezier(0.25, 1.25, 0.5, 1);
+      transition: max-height 0.6s cubic-bezier(0.25, 1.25, 0.5, 1); /* 彈簧效果 */
       padding: 0 10px;
     }
     .instructions-content.open {
@@ -154,10 +128,10 @@
   <div class="glass">
     <h1>JSON ➝ SRT 字幕轉換器</h1>
 
-    <!-- 主題切換  <div style="text-align: right;">
+    <!-- 主題切換 -->
+    <div style="text-align: right;">
       <button id="toggleTheme" class="primary">切換主題</button>
-    </div>-->
-   
+    </div>
 
     <!-- 上傳框 -->
     <div style="text-align: center;">
@@ -177,27 +151,14 @@
       <div id="preview" class="preview">尚未轉換字幕</div>
     </div>
 
-    <!-- 編輯器 -->
-    <div style="margin-top: 1.5rem;">
-      <h3>✏️ 編輯字幕：</h3>
-      <textarea id="editor"></textarea>
-      <div style="margin-top:10px;">
-        <input type="text" id="findText" placeholder="🔍 尋找文字">
-        <input type="text" id="replaceText" placeholder="✏️ 取代成">
-        <button id="findBtn" class="primary">尋找</button>
-        <button id="findNextBtn" class="primary">尋找下一個</button>
-        <button id="replaceBtn" class="success">取代</button>
-      </div>
-    </div>
-
     <!-- 說明 -->
     <div class="instructions">
       <div class="instructions-header">❓ 使用說明 (點我展開)</div>
       <div id="instructionsContent" class="instructions-content">
         <p>1️⃣ 上傳 AutoSub 生成的 JSON 檔案。</p>
         <p>2️⃣ 點擊「🚀 一鍵轉換」，會解析 <code>start</code>/<code>end</code>/<code>text</code>。</p>
-        <p>3️⃣ 可以在編輯器中手動修改，或用尋找 / 取代。</p>
-        <p>4️⃣ 點擊下載 SRT，就能匯出修改後的字幕檔。</p>
+        <p>3️⃣ 預覽字幕並下載 SRT。</p>
+        <p>小技巧：生成的檔案可直接匯入 DaVinci Resolve 當字幕軌。</p>
       </div>
     </div>
   </div>
@@ -210,7 +171,6 @@
     const toggleThemeBtn = document.getElementById('toggleTheme');
     const instructionsHeader = document.querySelector('.instructions-header');
     const instructionsContent = document.getElementById('instructionsContent');
-    const editor = document.getElementById('editor');
 
     // 主題切換
     toggleThemeBtn.addEventListener('click', () => {
@@ -229,7 +189,6 @@
       return date.toISOString().substr(11, 12).replace('.', ',');
     }
 
-    // 轉換
     convertBtn.addEventListener('click', () => {
       const file = fileInput.files[0];
       if (!file) {
@@ -250,8 +209,14 @@
             srtContent += `${seg.text}\n\n`;
           });
 
+          // 預覽
           previewBox.textContent = srtContent;
-          editor.value = srtContent;
+
+          // 下載
+          const blob = new Blob([srtContent], { type: "text/plain" });
+          const url = URL.createObjectURL(blob);
+          downloadLink.href = url;
+          downloadLink.download = "output.srt";
           downloadLink.style.display = "inline-block";
         } catch (err) {
           alert("解析 JSON 發生錯誤，請確認格式正確！");
@@ -260,71 +225,6 @@
       };
       reader.readAsText(file);
     });
-
-    let lastFindIndex = -1;
-
-    // 尋找
-    document.getElementById('findBtn').addEventListener('click', () => {
-      const query = document.getElementById('findText').value;
-      if (!query) return;
-      const content = editor.value;
-      let index = content.indexOf(query, 0);
-
-      if (index !== -1) {
-        lastFindIndex = index;
-        editor.focus();
-        editor.setSelectionRange(index, index + query.length);
-      } else {
-        alert("找不到指定的文字");
-      }
-    });
-
-    // 尋找下一個
-    document.getElementById('findNextBtn').addEventListener('click', () => {
-      const query = document.getElementById('findText').value;
-      if (!query) return;
-      const content = editor.value;
-      let startPos = lastFindIndex + query.length;
-      let index = content.indexOf(query, startPos);
-
-      if (index === -1) {
-        index = content.indexOf(query, 0); // 從頭再找一次
-      }
-
-      if (index !== -1) {
-        lastFindIndex = index;
-        editor.focus();
-        editor.setSelectionRange(index, index + query.length);
-      } else {
-        alert("找不到指定的文字");
-      }
-    });
-
-    // 取代
-    document.getElementById('replaceBtn').addEventListener('click', () => {
-      const query = document.getElementById('findText').value;
-      const replacement = document.getElementById('replaceText').value;
-      if (!query) return;
-
-      const start = editor.selectionStart;
-      const end = editor.selectionEnd;
-      const selected = editor.value.substring(start, end);
-
-      if (selected && selected === query) {
-        editor.setRangeText(replacement, start, end, "end");
-      } else {
-        editor.value = editor.value.replaceAll(query, replacement);
-      }
-    });
-
-    // 下載
-    downloadLink.addEventListener('click', () => {
-      const content = editor.value;
-      const blob = new Blob([content], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      downloadLink.href = url;
-      downloadLink.download = "output.srt";
-    });
   </script>
 </body>
-</html>.   
+</html>
